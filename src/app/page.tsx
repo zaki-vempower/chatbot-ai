@@ -1,95 +1,173 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+'use client'
+
+import { useState, useEffect, useCallback } from 'react'
+import { Box } from '@mui/material'
+import { AuthForm } from '@/components/AuthForm'
+import { Sidebar } from '@/components/Sidebar'
+import { ChatInterface } from '@/components/ChatInterface'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { LoadingScreen } from '@/components/LoadingSpinner'
+
+interface User {
+  id: string
+  email: string
+  name?: string
+}
+
+interface Message {
+  id: string
+  content: string
+  role: 'user' | 'assistant'
+  createdAt: string
+}
+
+interface Conversation {
+  id: string
+  title: string
+  createdAt: string
+  updatedAt: string
+  messageCount: number
+  messages?: Message[]
+  lastMessage?: {
+    content: string
+    role: string
+    createdAt: string
+  }
+}
 
 export default function Home() {
-  return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol>
-          <li>
-            Get started by editing <code>src/app/page.tsx</code>.
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [user, setUser] = useState<User | null>(null)
+  const [token, setToken] = useState<string | null>(null)
+  const [conversations, setConversations] = useState<Conversation[]>([])
+  const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.secondary}
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className={styles.footer}>
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+  useEffect(() => {
+    // Check for existing auth
+    const savedToken = localStorage.getItem('token')
+    const savedUser = localStorage.getItem('user')
+    
+    if (savedToken && savedUser) {
+      setToken(savedToken)
+      setUser(JSON.parse(savedUser))
+    }
+    
+    setIsLoading(false)
+  }, [])
+
+  const loadConversations = useCallback(async () => {
+    try {
+      const response = await fetch('/api/conversations', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setConversations(data.conversations)
+      }
+    } catch (error) {
+      console.error('Error loading conversations:', error)
+    }
+  }, [token])
+
+  useEffect(() => {
+    if (user && token) {
+      loadConversations()
+    }
+  }, [user, token, loadConversations])
+
+  const handleLogin = (userData: User, userToken: string) => {
+    setUser(userData)
+    setToken(userToken)
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    setUser(null)
+    setToken(null)
+    setConversations([])
+    setCurrentConversation(null)
+  }
+
+  const handleSelectConversation = async (conversation: Conversation) => {
+    try {
+      const response = await fetch(`/api/conversations/${conversation.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setCurrentConversation(data.conversation)
+      }
+    } catch (error) {
+      console.error('Error loading conversation:', error)
+    }
+  }
+
+  const handleNewConversation = () => {
+    setCurrentConversation(null)
+  }
+
+  const handleNewConversationCreated = (conversation: Conversation) => {
+    setCurrentConversation(conversation)
+    loadConversations() // Refresh the conversation list
+  }
+
+  const handleDeleteConversation = async (conversationId: string) => {
+    try {
+      const response = await fetch(`/api/conversations?id=${conversationId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        setConversations(prev => prev.filter(c => c.id !== conversationId))
+        if (currentConversation?.id === conversationId) {
+          setCurrentConversation(null)
+        }
+      }
+    } catch (error) {
+      console.error('Error deleting conversation:', error)
+    }
+  }
+
+  if (isLoading) {
+    return <LoadingScreen message="Initializing application..." />
+  }
+
+  if (!user) {
+    return (
+      <ErrorBoundary>
+        <AuthForm onLogin={handleLogin} />
+      </ErrorBoundary>
+    )
+  }
+
+  return (
+    <ErrorBoundary>
+      <Box sx={{ height: '100vh', display: 'flex', bgcolor: 'background.default' }}>
+        <Sidebar
+          conversations={conversations}
+          currentConversationId={currentConversation?.id}
+          onSelectConversation={handleSelectConversation}
+          onNewConversation={handleNewConversation}
+          onDeleteConversation={handleDeleteConversation}
+          onLogout={handleLogout}
+        />
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <ChatInterface
+            conversation={currentConversation || undefined}
+            onNewConversation={handleNewConversationCreated}
           />
-          Learn
-        </a>
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
-  );
+        </Box>
+      </Box>
+    </ErrorBoundary>
+  )
 }
