@@ -124,7 +124,7 @@ export class WebCrawler {
           ]
         },
         orderBy: { updatedAt: 'desc' },
-        take: 5
+        take: 20
       })
 
       if (crawledData.length === 0) {

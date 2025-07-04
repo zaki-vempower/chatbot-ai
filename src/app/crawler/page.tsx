@@ -39,13 +39,6 @@ import NextLink from 'next/link'
 import { AuthForm } from '@/components/AuthForm'
 import { LoadingScreen } from '@/components/LoadingSpinner'
 
-const StyledCard = styled(Card)(({ theme }) => ({
-  background: `linear-gradient(135deg, ${theme.palette.primary.light}15, ${theme.palette.secondary.light}15)`,
-  border: `1px solid ${theme.palette.divider}`,
-  boxShadow: 'none',
-  marginBottom: theme.spacing(3),
-}))
-
 const CrawlerContainer = styled(Box)(({ theme }) => ({
   padding: theme.spacing(3),
   maxWidth: 1200,
@@ -71,6 +64,7 @@ export default function CrawlerPage() {
   const [crawledPages, setCrawledPages] = useState<CrawledPage[]>([])
   const [crawlUrl, setCrawlUrl] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
+  const [maxEntries, setMaxEntries] = useState(10)
   const [isCrawling, setIsCrawling] = useState(false)
   const [isBulkCrawling, setIsBulkCrawling] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
@@ -92,6 +86,8 @@ export default function CrawlerPage() {
     open: false,
     pageId: null,
   })
+  const [crawlDialog, setCrawlDialog] = useState(false)
+  const [bulkCrawlDialog, setBulkCrawlDialog] = useState(false)
   const { t } = useTranslation()
 
   // Check authentication on component mount
@@ -206,7 +202,7 @@ export default function CrawlerPage() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ query: searchQuery })
+        body: JSON.stringify({ query: searchQuery, maxResults: maxEntries })
       })
 
       if (!response.ok) {
@@ -366,88 +362,61 @@ export default function CrawlerPage() {
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
 
-      <StyledCard>
-        <CardHeader
-          title={t('crawler.crawl.title')}
-          subheader={t('crawler.crawl.description')}
-        />
-        <CardContent>
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <TextField
-              fullWidth
-              variant="outlined"
-              label={t('crawler.crawl.urlLabel')}
-              value={crawlUrl}
-              onChange={(e) => setCrawlUrl(e.target.value)}
-              placeholder={t('crawler.crawl.placeholder')}
-              disabled={isCrawling || isBulkCrawling}
-            />
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={crawlWebsite}
-              disabled={isCrawling || isBulkCrawling || !crawlUrl.trim()}
-              startIcon={isCrawling ? <CircularProgress size={20} color="inherit" /> : <GlobeIcon />}
-            >
-              {isCrawling ? t('crawler.crawl.crawling') : t('crawler.crawl.crawl')}
-            </Button>
-          </Box>
-        </CardContent>
-      </StyledCard>
-
-      <StyledCard>
-        <CardHeader
-          title={t('crawler.bulkCrawl.title')}
-          subheader={t('crawler.bulkCrawl.description')}
-        />
-        <CardContent>
-          <Box sx={{ display: 'flex', gap: 2, mb: isBulkCrawling ? 2 : 0 }}>
-            <TextField
-              fullWidth
-              variant="outlined"
-              label={t('crawler.bulkCrawl.queryLabel')}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t('crawler.bulkCrawl.placeholder')}
-              disabled={isCrawling || isBulkCrawling}
-            />
-            {isBulkCrawling ? (
+      {/* Progress Display for Bulk Crawl */}
+      {isBulkCrawling && bulkCrawlProgress && (
+        <Card sx={{ mb: 3 }}>
+          <CardContent>
+            <Typography variant="h6" gutterBottom>
+              {t('crawler.bulkCrawl.progress.title')}
+            </Typography>
+            <Typography variant="body2" gutterBottom>
+              {t('crawler.bulkCrawl.progress.crawling', { currentUrl: bulkCrawlProgress.currentUrl, currentIndex: bulkCrawlProgress.currentIndex, totalUrls: bulkCrawlProgress.totalUrls })}
+            </Typography>
+            <LinearProgress variant="determinate" value={bulkCrawlProgress.percentage} sx={{ mb: 2 }} />
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
+              <Typography variant="caption">{t('crawler.bulkCrawl.progress.status')}: {bulkCrawlProgress.status}</Typography>
+              <Typography variant="caption">{t('crawler.bulkCrawl.progress.success')}: {bulkCrawlProgress.successfulCrawls}</Typography>
+              <Typography variant="caption">{t('crawler.bulkCrawl.progress.failed')}: {bulkCrawlProgress.failedCrawls}</Typography>
+              <Typography variant="caption">{t('crawler.bulkCrawl.progress.time')}: {Math.round(bulkCrawlProgress.timeElapsed)}s</Typography>
+            </Box>
+            <Box sx={{ mt: 2 }}>
               <Button
                 variant="contained"
                 color="error"
                 onClick={stopBulkCrawl}
                 disabled={!crawlSessionId}
+                fullWidth
               >
                 {t('crawler.bulkCrawl.stop')}
               </Button>
-            ) : (
-              <Button
-                variant="contained"
-                color="secondary"
-                onClick={searchAndCrawlBulk}
-                disabled={isCrawling || isBulkCrawling || !searchQuery.trim()}
-                startIcon={isBulkCrawling ? <CircularProgress size={20} color="inherit" /> : <BulkCrawlIcon />}
-              >
-                {t('crawler.bulkCrawl.searchAndCrawl')}
-              </Button>
-            )}
-          </Box>
-          {isBulkCrawling && bulkCrawlProgress && (
-            <Box sx={{ mt: 2 }}>
-              <Typography variant="body2" gutterBottom>
-                {t('crawler.bulkCrawl.progress.crawling', { currentUrl: bulkCrawlProgress.currentUrl, currentIndex: bulkCrawlProgress.currentIndex, totalUrls: bulkCrawlProgress.totalUrls })}
-              </Typography>
-              <LinearProgress variant="determinate" value={bulkCrawlProgress.percentage} />
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
-                <Typography variant="caption">{t('crawler.bulkCrawl.progress.status')}: {bulkCrawlProgress.status}</Typography>
-                <Typography variant="caption">{t('crawler.bulkCrawl.progress.success')}: {bulkCrawlProgress.successfulCrawls}</Typography>
-                <Typography variant="caption">{t('crawler.bulkCrawl.progress.failed')}: {bulkCrawlProgress.failedCrawls}</Typography>
-                <Typography variant="caption">{t('crawler.bulkCrawl.progress.time')}: {Math.round(bulkCrawlProgress.timeElapsed)}s</Typography>
-              </Box>
             </Box>
-          )}
-        </CardContent>
-      </StyledCard>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Action Buttons */}
+      <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
+        <Button
+          variant="contained"
+          color="primary"
+          startIcon={<GlobeIcon />}
+          onClick={() => setCrawlDialog(true)}
+          disabled={isCrawling || isBulkCrawling}
+          size="large"
+        >
+          {t('crawler.crawl.title')}
+        </Button>
+        <Button
+          variant="contained"
+          color="secondary"
+          startIcon={<BulkCrawlIcon />}
+          onClick={() => setBulkCrawlDialog(true)}
+          disabled={isCrawling || isBulkCrawling}
+          size="large"
+        >
+          {t('crawler.bulkCrawl.title')}
+        </Button>
+      </Box>
 
       <Card>
         <CardHeader
@@ -518,6 +487,91 @@ export default function CrawlerPage() {
           </TableContainer>
         </CardContent>
       </Card>
+
+      {/* Single URL Crawl Dialog */}
+      <Dialog open={crawlDialog} onClose={() => setCrawlDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>{t('crawler.crawl.title')}</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            {t('crawler.crawl.description')}
+          </Typography>
+          <TextField
+            fullWidth
+            variant="outlined"
+            label={t('crawler.crawl.urlLabel')}
+            value={crawlUrl}
+            onChange={(e) => setCrawlUrl(e.target.value)}
+            placeholder={t('crawler.crawl.placeholder')}
+            disabled={isCrawling || isBulkCrawling}
+            sx={{ mt: 1 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCrawlDialog(false)} disabled={isCrawling}>
+            {t('common.cancel')}
+          </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={async () => {
+              await crawlWebsite()
+              setCrawlDialog(false)
+            }}
+            disabled={isCrawling || isBulkCrawling || !crawlUrl.trim()}
+            startIcon={isCrawling ? <CircularProgress size={20} color="inherit" /> : <GlobeIcon />}
+          >
+            {isCrawling ? t('crawler.crawl.crawling') : t('crawler.crawl.crawl')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Bulk Crawl Dialog */}
+      <Dialog open={bulkCrawlDialog} onClose={() => setBulkCrawlDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>{t('crawler.bulkCrawl.title')}</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            {t('crawler.bulkCrawl.description')}
+          </Typography>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+            <TextField
+              fullWidth
+              variant="outlined"
+              label={t('crawler.bulkCrawl.queryLabel')}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={t('crawler.bulkCrawl.placeholder')}
+              disabled={isCrawling || isBulkCrawling}
+            />
+            <TextField
+              variant="outlined"
+              label={t('crawler.bulkCrawl.maxEntriesLabel')}
+              type="number"
+              value={maxEntries}
+              onChange={(e) => setMaxEntries(Math.max(1, Math.min(50, parseInt(e.target.value) || 10)))}
+              inputProps={{ min: 1, max: 50 }}
+              disabled={isCrawling || isBulkCrawling}
+              helperText={t('crawler.bulkCrawl.maxEntriesHelper')}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setBulkCrawlDialog(false)} disabled={isBulkCrawling}>
+            {t('common.cancel')}
+          </Button>
+          <Button
+            variant="contained"
+            color="secondary"
+            onClick={async () => {
+              await searchAndCrawlBulk()
+              setBulkCrawlDialog(false)
+            }}
+            disabled={isCrawling || isBulkCrawling || !searchQuery.trim()}
+            startIcon={isBulkCrawling ? <CircularProgress size={20} color="inherit" /> : <BulkCrawlIcon />}
+          >
+            {t('crawler.bulkCrawl.searchAndCrawl')}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog open={deleteDialog.open} onClose={closeDeleteDialog}>
         <DialogTitle>{t('crawler.deleteDialog.title')}</DialogTitle>

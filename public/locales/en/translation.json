@@ -85,9 +85,12 @@
       "description": "Enter a search query. The system will find relevant URLs and crawl them.",
       "queryLabel": "Search Query",
       "placeholder": "e.g., \"latest AI research\"",
+      "maxEntriesLabel": "Max Entries",
+      "maxEntriesHelper": "Number of search results to crawl (1-50)",
       "stop": "Stop Crawl",
       "searchAndCrawl": "Search & Crawl",
       "progress": {
+        "title": "Bulk Crawl in Progress",
         "crawling": "Crawling URL {{currentIndex}} of {{totalUrls}}: {{currentUrl}}",
         "status": "Status",
         "success": "Success",
