@@ -283,12 +283,14 @@ export class SearXNGClient {
 
   async isHealthy(): Promise<boolean> {
     try {
-      const response = await fetch(`${this.baseUrl}/search?q=test&format=json`, {
+      const response = await fetch(`http://localhost:8080/search?q=test&format=json`, {
         headers: {
           'Accept': 'application/json',
         },
         signal: AbortSignal.timeout(5000) // 5 second timeout
       })
+      console.log('SearXNG health check response:', response.status, response.statusText);
+      
       return response.ok
     } catch (error) {
       console.error('SearXNG health check failed:', error)

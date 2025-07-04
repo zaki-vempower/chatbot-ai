@@ -4,6 +4,7 @@ import "./globals.css";
 import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
 import { ClientThemeProvider } from '@/components/ClientThemeProvider';
 import { ToastContextProvider } from '@/components/ToastProvider'
+import { I18nProvider } from '@/components/I18nProvider'
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,7 +32,9 @@ export default function RootLayout({
         <AppRouterCacheProvider>
           <ClientThemeProvider>
             <ToastContextProvider>
-              {children}
+              <I18nProvider>
+                {children}
+              </I18nProvider>
             </ToastContextProvider>
           </ClientThemeProvider>
         </AppRouterCacheProvider>

@@ -21,6 +21,8 @@ import {
 } from '@mui/icons-material'
 import { styled } from '@mui/material/styles'
 import { useToast } from '@/components/ToastProvider'
+import i18n from '@/lib/i18n'
+import { useTranslation } from 'react-i18next'
 
 const MessageBox = styled(Paper)<{ role: 'user' | 'assistant' }>(({ theme, role }) => ({
   padding: theme.spacing(2),
@@ -80,6 +82,7 @@ interface ChatInterfaceProps {
 }
 
 export function ChatInterface({ conversation, onNewConversation }: ChatInterfaceProps) {
+  const { t } = useTranslation()
   const [messages, setMessages] = useState<Message[]>(conversation?.messages || [])
   const [inputMessage, setInputMessage] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -166,21 +169,22 @@ export function ChatInterface({ conversation, onNewConversation }: ChatInterface
         <Box display="flex" justifyContent="space-between" alignItems="center">
           <Box>
             <Typography variant="h4" fontWeight="bold" color="text.primary">
-              {conversation?.title || 'New Conversation'}
+              {conversation?.title || t('newConversation')}
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              Chat with AI using {
-                provider === 'openai' ? 'OpenAI GPT' : 
-                provider === 'claude' ? 'Anthropic Claude' : 
-                provider === 'gemini' ? 'Google Gemini' : 
-                provider === 'deepseek' ? 'DeepSeek' :
-                'Llama (Local)'
-              }
+              {t('chatWithAiUsing', {
+                provider:
+                  provider === 'openai' ? t('openaiGpt') :
+                  provider === 'claude' ? t('anthropicClaude') :
+                  provider === 'gemini' ? t('googleGemini') :
+                  provider === 'deepseek' ? t('deepseek') :
+                  t('llamaLocal')
+              })}
             </Typography>
           </Box>
           <Box display="flex" alignItems="center" gap={2}>
             <Typography variant="body2" fontWeight="medium">
-              AI Provider:
+              {t('aiProvider')}
             </Typography>
             <FormControl size="small" sx={{ minWidth: 160 }}>
               <Select
@@ -188,11 +192,11 @@ export function ChatInterface({ conversation, onNewConversation }: ChatInterface
                 onChange={(e) => setProvider(e.target.value as 'openai' | 'claude' | 'gemini' | 'deepseek' | 'llama')}
                 variant="outlined"
               >
-                <MenuItem value="openai">OpenAI GPT</MenuItem>
-                <MenuItem value="claude">Anthropic Claude</MenuItem>
-                <MenuItem value="gemini">Google Gemini</MenuItem>
-                <MenuItem value="deepseek">DeepSeek</MenuItem>
-                <MenuItem value="llama">Llama (Local)</MenuItem>
+                <MenuItem value="openai">{t('openaiGpt')}</MenuItem>
+                <MenuItem value="claude">{t('anthropicClaude')}</MenuItem>
+                <MenuItem value="gemini">{t('googleGemini')}</MenuItem>
+                <MenuItem value="deepseek">{t('deepseek')}</MenuItem>
+                <MenuItem value="llama">{t('llamaLocal')}</MenuItem>
               </Select>
             </FormControl>
           </Box>
@@ -205,10 +209,10 @@ export function ChatInterface({ conversation, onNewConversation }: ChatInterface
           <Box textAlign="center" mt={10}>
             <BotIcon sx={{ fontSize: 80, color: 'text.disabled', mb: 3 }} />
             <Typography variant="h5" fontWeight="bold" color="text.secondary" gutterBottom>
-              Ready to chat!
+              {t('readyToChat')}
             </Typography>
             <Typography variant="body1" color="text.disabled">
-              Start a conversation with your AI assistant
+              {t('startConversation')}
             </Typography>
           </Box>
         ) : (
@@ -265,7 +269,7 @@ export function ChatInterface({ conversation, onNewConversation }: ChatInterface
             multiline
             minRows={2}
             maxRows={4}
-            placeholder="Type your message here... Press Enter to send, Shift+Enter for new line"
+            placeholder={t('typeMessage')}
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
             onKeyPress={handleKeyPress}
@@ -287,7 +291,7 @@ export function ChatInterface({ conversation, onNewConversation }: ChatInterface
         </Box>
         <Box display="flex" justifyContent="space-between" alignItems="center" mt={1}>
           <Typography variant="caption" color="text.secondary">
-            AI responses are generated and may contain inaccuracies
+            {t('aiResponsesDisclaimer')}
           </Typography>
           <Chip
             label={`${inputMessage.length}/2000 characters`}

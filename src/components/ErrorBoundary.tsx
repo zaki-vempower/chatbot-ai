@@ -3,6 +3,7 @@
 import React from 'react'
 import { Button, Card, CardContent, Typography, Box, Avatar } from '@mui/material'
 import { Error as ErrorIcon, Refresh as RefreshIcon } from '@mui/icons-material'
+import i18n from '@/lib/i18n'
 
 interface ErrorBoundaryState {
   hasError: boolean
@@ -62,15 +63,12 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
               >
                 <ErrorIcon sx={{ fontSize: 32 }} />
               </Avatar>
-              
               <Typography variant="h5" component="h1" gutterBottom fontWeight="bold">
-                Something went wrong
+                {i18n.t('somethingWentWrong')}
               </Typography>
-              
               <Typography variant="body2" color="text.secondary" paragraph>
-                We encountered an unexpected error. Please try refreshing the page.
+                {i18n.t('unexpectedError')}
               </Typography>
-
               {process.env.NODE_ENV === 'development' && this.state.error && (
                 <Box
                   sx={{
@@ -86,20 +84,19 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
                   </Typography>
                 </Box>
               )}
-
               <Box sx={{ mt: 3, display: 'flex', gap: 2, justifyContent: 'center' }}>
                 <Button
                   onClick={this.resetError}
                   variant="contained"
                   startIcon={<RefreshIcon />}
                 >
-                  Try Again
+                  {i18n.t('tryAgain')}
                 </Button>
                 <Button
                   onClick={() => window.location.reload()}
                   variant="outlined"
                 >
-                  Reload Page
+                  {i18n.t('reloadPage')}
                 </Button>
               </Box>
             </CardContent>

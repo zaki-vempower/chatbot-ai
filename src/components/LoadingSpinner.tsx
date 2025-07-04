@@ -1,4 +1,5 @@
 import { CircularProgress, Box, Typography } from '@mui/material'
+import { useTranslation } from 'react-i18next'
 
 interface LoadingSpinnerProps {
   size?: number
@@ -13,7 +14,8 @@ interface LoadingScreenProps {
   message?: string
 }
 
-export function LoadingScreen({ message = 'Loading...' }: LoadingScreenProps) {
+export function LoadingScreen({ message }: LoadingScreenProps) {
+  const { t } = useTranslation()
   return (
     <Box
       sx={{
@@ -27,7 +29,7 @@ export function LoadingScreen({ message = 'Loading...' }: LoadingScreenProps) {
       <Box sx={{ textAlign: 'center' }}>
         <CircularProgress size={48} sx={{ mb: 2, color: 'primary.main' }} />
         <Typography variant="body1" color="text.secondary">
-          {message}
+          {message || t('loading')}
         </Typography>
       </Box>
     </Box>

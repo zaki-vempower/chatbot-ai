@@ -14,6 +14,7 @@ import {
   Link as MuiLink,
 } from '@mui/material'
 import { styled } from '@mui/material/styles'
+import { useTranslation } from 'react-i18next'
 
 const StyledContainer = styled(Container)(({ theme }) => ({
   minHeight: '100vh',
@@ -37,6 +38,7 @@ interface AuthFormProps {
 }
 
 export function AuthForm({ onLogin }: AuthFormProps) {
+  const { t } = useTranslation()
   const [isLogin, setIsLogin] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
@@ -96,12 +98,12 @@ export function AuthForm({ onLogin }: AuthFormProps) {
         <CardContent>
           <Box textAlign="center" mb={4}>
             <Typography variant="h4" component="h1" gutterBottom color="primary" fontWeight="bold">
-              {isLogin ? 'Welcome Back' : 'Create Account'}
+              {isLogin ? t('welcomeBack') : t('createAccount')}
             </Typography>
             <Typography variant="body2" color="text.secondary">
               {isLogin 
-                ? 'Sign in to continue to your AI assistant' 
-                : 'Join us to start chatting with powerful AI models'
+                ? t('signInToContinue')
+                : t('joinUsToChat')
               }
             </Typography>
           </Box>
@@ -110,7 +112,7 @@ export function AuthForm({ onLogin }: AuthFormProps) {
             {!isLogin && (
               <TextField
                 fullWidth
-                label="Full Name"
+                label={t('fullName')}
                 name="name"
                 type="text"
                 required={!isLogin}
@@ -120,10 +122,9 @@ export function AuthForm({ onLogin }: AuthFormProps) {
                 variant="outlined"
               />
             )}
-            
             <TextField
               fullWidth
-              label="Email Address"
+              label={t('emailAddress')}
               name="email"
               type="email"
               required
@@ -133,10 +134,9 @@ export function AuthForm({ onLogin }: AuthFormProps) {
               variant="outlined"
               autoComplete="email"
             />
-
             <TextField
               fullWidth
-              label="Password"
+              label={t('password')}
               name="password"
               type="password"
               required
@@ -146,15 +146,13 @@ export function AuthForm({ onLogin }: AuthFormProps) {
               variant="outlined"
               autoComplete={isLogin ? 'current-password' : 'new-password'}
               inputProps={{ minLength: 6 }}
-              helperText={!isLogin ? 'Must be at least 6 characters long' : ''}
+              helperText={!isLogin ? t('passwordHelper') : ''}
             />
-
             {error && (
               <Alert severity="error" sx={{ mt: 2 }}>
                 {error}
               </Alert>
             )}
-
             <Button
               type="submit"
               fullWidth
@@ -166,16 +164,15 @@ export function AuthForm({ onLogin }: AuthFormProps) {
               {isLoading ? (
                 <Box display="flex" alignItems="center" gap={1}>
                   <CircularProgress size={20} color="inherit" />
-                  {isLogin ? 'Signing in...' : 'Creating account...'}
+                  {isLogin ? t('signingIn') : t('creatingAccount')}
                 </Box>
               ) : (
-                isLogin ? 'Sign In' : 'Create Account'
+                isLogin ? t('signIn') : t('createAccount')
               )}
             </Button>
-
             <Box textAlign="center" pt={2} borderTop="1px solid" borderColor="divider">
               <Typography variant="body2" color="text.secondary">
-                {isLogin ? "Don't have an account? " : 'Already have an account? '}
+                {isLogin ? t('noAccount') : t('alreadyAccount')}
                 <MuiLink
                   component="button"
                   type="button"
@@ -184,7 +181,7 @@ export function AuthForm({ onLogin }: AuthFormProps) {
                   color="primary"
                   fontWeight="medium"
                 >
-                  {isLogin ? 'Create one' : 'Sign in'}
+                  {isLogin ? t('createOne') : t('signIn')}
                 </MuiLink>
               </Typography>
             </Box>

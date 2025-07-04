@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Card,
@@ -16,7 +17,6 @@ import {
   TableHead,
   TableRow,
   IconButton,
-  Chip,
   Alert,
   CircularProgress,
   Dialog,
@@ -92,6 +92,7 @@ export default function CrawlerPage() {
     open: false,
     pageId: null,
   })
+  const { t } = useTranslation()
 
   // Check authentication on component mount
   useEffect(() => {
@@ -113,7 +114,7 @@ export default function CrawlerPage() {
     try {
       const token = localStorage.getItem('token')
       if (!token) {
-        setError('Please log in to view crawled pages')
+        setError(t('crawler.loginToView'))
         return
       }
 
@@ -127,13 +128,13 @@ export default function CrawlerPage() {
         const data = await response.json()
         setCrawledPages(data.pages || [])
       } else {
-        setError('Failed to load crawled pages')
+        setError(t('crawler.failedToLoad'))
       }
     } catch (error) {
       console.error('Error loading crawled pages:', error)
-      setError('Failed to load crawled pages')
+      setError(t('crawler.failedToLoad'))
     }
-  }, [])
+  }, [t])
 
   // Load crawled pages when authenticated
   useEffect(() => {
@@ -167,13 +168,13 @@ export default function CrawlerPage() {
 
       const data = await response.json()
       setCrawlUrl('')
-      setSuccess(`Successfully crawled: ${data.data.title || crawlUrl}`)
+      setSuccess(`${t('crawler.successfullyCrawled')}: ${data.data.title || crawlUrl}`)
       
       // Refresh the list
       loadCrawledPages()
     } catch (error) {
       console.error('Error crawling website:', error)
-      setError(error instanceof Error ? error.message : 'Failed to crawl the website. Please check the URL and try again.')
+      setError(error instanceof Error ? error.message : t('crawler.crawlError'))
     } finally {
       setIsCrawling(false)
     }
@@ -189,7 +190,7 @@ export default function CrawlerPage() {
       query: searchQuery,
       totalUrls: 0,
       currentIndex: 0,
-      currentUrl: 'Starting search...',
+      currentUrl: t('crawler.startingSearch'),
       status: 'searching',
       successfulCrawls: 0,
       failedCrawls: 0,
@@ -199,504 +200,335 @@ export default function CrawlerPage() {
 
     try {
       const token = localStorage.getItem('token')
-      
-      // Start the crawling process
       const response = await fetch('/api/search-crawl', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ 
-          query: searchQuery,
-          maxResults: 20,
-          categories: ['general']
-        }),
+        body: JSON.stringify({ query: searchQuery })
       })
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to start bulk crawling')
+        throw new Error(errorData.error || t('crawler.bulkCrawlError'))
       }
 
       const data = await response.json()
-      const sessionId = data.sessionId
-      setCrawlSessionId(sessionId)
-
-      // Start polling for progress
-      pollCrawlProgress(sessionId, token as string)
-      
+      setCrawlSessionId(data.sessionId)
+      setSuccess(t('crawler.bulkCrawlStarted'))
     } catch (error) {
-      console.error('Error starting bulk crawling:', error)
-      setError(error instanceof Error ? error.message : 'Failed to start bulk crawling.')
+      console.error('Error starting bulk crawl:', error)
+      setError(error instanceof Error ? error.message : t('crawler.bulkCrawlError'))
       setIsBulkCrawling(false)
+    }
+  }
+
+  const stopBulkCrawl = async () => {
+    if (!crawlSessionId) return
+
+    try {
+      const token = localStorage.getItem('token')
+      await fetch(`/api/crawl-progress?sessionId=${crawlSessionId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      setSuccess(t('crawler.bulkCrawlStopped'))
+    } catch (error) {
+      console.error('Error stopping bulk crawl:', error)
+      setError(t('crawler.stopBulkCrawlError'))
+    } finally {
+      setIsBulkCrawling(false)
+      setCrawlSessionId(null)
       setBulkCrawlProgress(null)
     }
   }
 
-  const pollCrawlProgress = async (sessionId: string, token: string) => {
-    const pollInterval = setInterval(async () => {
+  // Effect to poll for bulk crawl progress
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null
+
+    const checkProgress = async () => {
+      if (!crawlSessionId) return
+
       try {
-        const response = await fetch(`/api/crawl-progress?sessionId=${sessionId}`, {
+        const token = localStorage.getItem('token')
+        const response = await fetch(`/api/crawl-progress?sessionId=${crawlSessionId}`, {
           headers: {
-            'Authorization': `Bearer ${token}`,
-          },
+            'Authorization': `Bearer ${token}`
+          }
         })
 
-        if (!response.ok) {
-          throw new Error('Failed to get progress')
-        }
+        if (response.ok) {
+          const progressData = await response.json()
+          setBulkCrawlProgress(progressData)
 
-        const data = await response.json()
-        const progress = data.progress
-
-        setBulkCrawlProgress({
-          query: progress.query,
-          totalUrls: progress.totalUrls,
-          currentIndex: progress.currentIndex,
-          currentUrl: progress.currentUrl,
-          status: progress.status,
-          successfulCrawls: progress.successfulCrawls,
-          failedCrawls: progress.failedCrawls,
-          percentage: progress.percentage,
-          timeElapsed: progress.timeElapsed
-        })
-
-        // Check if completed
-        if (progress.status === 'completed' || progress.status === 'error') {
-          clearInterval(pollInterval)
+          if (progressData.status === 'completed' || progressData.status === 'stopped') {
+            setIsBulkCrawling(false)
+            setCrawlSessionId(null)
+            loadCrawledPages() // Refresh the list
+            if (progressData.status === 'completed') {
+              setSuccess(t('crawler.bulkCrawlComplete'))
+            }
+          }
+        } else if (response.status === 404) {
+          // Session is gone, stop polling
           setIsBulkCrawling(false)
           setCrawlSessionId(null)
-          
-          if (progress.status === 'completed') {
-            setSearchQuery('')
-            setSuccess(
-              `Successfully crawled ${progress.successfulCrawls} out of ${progress.totalUrls} websites for query: "${progress.query}"`
-            )
-            // Refresh the list
-            loadCrawledPages()
-          } else {
-            setError(progress.error || 'Bulk crawling failed')
-          }
-          
           setBulkCrawlProgress(null)
+          loadCrawledPages()
+          setSuccess(t('crawler.bulkCrawlSessionFinished'))
         }
-        
       } catch (error) {
-        console.error('Error polling progress:', error)
-        clearInterval(pollInterval)
-        setIsBulkCrawling(false)
-        setBulkCrawlProgress(null)
-        setError('Failed to track crawling progress')
+        console.error('Error fetching crawl progress:', error)
+        setError(t('crawler.progressError'))
+        setIsBulkCrawling(false) // Stop on error
+        setCrawlSessionId(null)
       }
-    }, 1500) // Poll every 1.5 seconds
-  }
+    }
 
-  const deleteCrawledPage = async (pageId: string) => {
+    if (isBulkCrawling && crawlSessionId) {
+      interval = setInterval(checkProgress, 2000) // Poll every 2 seconds
+    }
+
+    return () => {
+      if (interval) {
+        clearInterval(interval)
+      }
+    }
+  }, [isBulkCrawling, crawlSessionId, loadCrawledPages, t])
+
+  const handleDelete = async () => {
+    if (!deleteDialog.pageId) return
+
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch(`/api/crawl?id=${pageId}`, {
+      const response = await fetch(`/api/crawled-data/${deleteDialog.pageId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+          'Authorization': `Bearer ${token}`
+        }
       })
 
       if (response.ok) {
-        setCrawledPages(prev => prev.filter(page => page.id !== pageId))
-        setSuccess('Page deleted successfully')
+        setSuccess(t('crawler.pageDeleted'))
+        loadCrawledPages()
       } else {
-        setError('Failed to delete page')
+        setError(t('crawler.deleteError'))
       }
     } catch (error) {
       console.error('Error deleting page:', error)
-      setError('Failed to delete page')
+      setError(t('crawler.deleteError'))
+    } finally {
+      setDeleteDialog({ open: false, pageId: null })
     }
+  }
+
+  const openDeleteDialog = (pageId: string) => {
+    setDeleteDialog({ open: true, pageId })
+  }
+
+  const closeDeleteDialog = () => {
     setDeleteDialog({ open: false, pageId: null })
   }
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      crawlWebsite()
-    }
-  }
-
-  const handleSearchKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      searchAndCrawlBulk()
-    }
-  }
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString()
-  }
-
-  const truncateText = (text: string, maxLength: number) => {
-    return text.length > maxLength ? text.substring(0, maxLength) + '...' : text
-  }
-
   if (isLoading) {
-    return <LoadingScreen message="Loading crawler..." />
+    return <LoadingScreen />
   }
 
   if (!user) {
     return <AuthForm onLogin={handleLogin} />
   }
 
+  const filteredPages = crawledPages.filter(page =>
+    page.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    page.url.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-      {/* Navigation Header */}
-      <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider', bgcolor: 'background.paper' }}>
-        <NextLink href="/" style={{ textDecoration: 'none' }}>
-          <Button
-            startIcon={<BackIcon />}
-            variant="outlined"
-            size="small"
-          >
-            Back to Chat
-          </Button>
-        </NextLink>
+    <CrawlerContainer>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h4" component="h1" gutterBottom>
+          {t('crawler.title')}
+        </Typography>
+        <Button
+          variant="outlined"
+          startIcon={<BackIcon />}
+          component={NextLink}
+          href="/"
+        >
+          {t('crawler.backToChat')}
+        </Button>
       </Box>
 
-      <CrawlerContainer>
-        <Typography variant="h3" component="h1" gutterBottom fontWeight="bold" color="primary">
-          Web Crawler Manager
-        </Typography>
-        <Typography variant="body1" color="text.secondary" paragraph>
-          Crawl websites to extract content for AI knowledge enhancement. Manage your crawled pages below.
-        </Typography>
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
 
-        {/* Crawler Input Section */}
-        <StyledCard>
-          <CardHeader>
-            <Box display="flex" alignItems="center" gap={2} mb={1}>
-              <GlobeIcon color="primary" sx={{ fontSize: 32 }} />
-              <Typography variant="h5" fontWeight="bold">
-                Crawl New Website
-              </Typography>
-            </Box>
-            <Typography variant="body2" color="text.secondary">
-              Enter a URL to crawl and extract content for AI knowledge enhancement
-            </Typography>
-          </CardHeader>
-          <CardContent>
-            <Box display="flex" gap={2}>
-              <TextField
-                fullWidth
-                placeholder="https://example.com - Enter any URL to crawl and analyze..."
-                value={crawlUrl}
-                onChange={(e) => setCrawlUrl(e.target.value)}
-                onKeyPress={handleKeyPress}
-                variant="outlined"
-                disabled={isCrawling}
-              />
+      <StyledCard>
+        <CardHeader
+          title={t('crawler.crawl.title')}
+          subheader={t('crawler.crawl.description')}
+        />
+        <CardContent>
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <TextField
+              fullWidth
+              variant="outlined"
+              label={t('crawler.crawl.urlLabel')}
+              value={crawlUrl}
+              onChange={(e) => setCrawlUrl(e.target.value)}
+              placeholder={t('crawler.crawl.placeholder')}
+              disabled={isCrawling || isBulkCrawling}
+            />
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={crawlWebsite}
+              disabled={isCrawling || isBulkCrawling || !crawlUrl.trim()}
+              startIcon={isCrawling ? <CircularProgress size={20} color="inherit" /> : <GlobeIcon />}
+            >
+              {isCrawling ? t('crawler.crawl.crawling') : t('crawler.crawl.crawl')}
+            </Button>
+          </Box>
+        </CardContent>
+      </StyledCard>
+
+      <StyledCard>
+        <CardHeader
+          title={t('crawler.bulkCrawl.title')}
+          subheader={t('crawler.bulkCrawl.description')}
+        />
+        <CardContent>
+          <Box sx={{ display: 'flex', gap: 2, mb: isBulkCrawling ? 2 : 0 }}>
+            <TextField
+              fullWidth
+              variant="outlined"
+              label={t('crawler.bulkCrawl.queryLabel')}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={t('crawler.bulkCrawl.placeholder')}
+              disabled={isCrawling || isBulkCrawling}
+            />
+            {isBulkCrawling ? (
               <Button
-                onClick={crawlWebsite}
-                disabled={isCrawling || !crawlUrl.trim()}
                 variant="contained"
-                sx={{ minWidth: 160, height: 56 }}
+                color="error"
+                onClick={stopBulkCrawl}
+                disabled={!crawlSessionId}
               >
-                {isCrawling ? (
-                  <>
-                    <CircularProgress size={16} sx={{ mr: 1 }} />
-                    Crawling...
-                  </>
-                ) : (
-                  'Crawl Website'
-                )}
+                {t('crawler.bulkCrawl.stop')}
               </Button>
-            </Box>
-
-            {error && (
-              <Alert severity="error" sx={{ mt: 2 }} onClose={() => setError('')}>
-                {error}
-              </Alert>
-            )}
-
-            {success && (
-              <Alert severity="success" sx={{ mt: 2 }} onClose={() => setSuccess('')}>
-                {success}
-              </Alert>
-            )}
-          </CardContent>
-        </StyledCard>
-
-        {/* Bulk Crawler Section */}
-        <StyledCard>
-          <CardHeader>
-            <Box display="flex" alignItems="center" gap={2} mb={1}>
-              <BulkCrawlIcon color="primary" sx={{ fontSize: 32 }} />
-              <Typography variant="h5" fontWeight="bold">
-                Bulk Crawl Websites
-              </Typography>
-            </Box>
-            <Typography variant="body2" color="text.secondary">
-              Search and crawl multiple websites at once using SearXNG. Each site has a 40-second timeout to prevent delays.
-            </Typography>
-          </CardHeader>
-          <CardContent>
-            <Box display="flex" gap={2}>
-              <TextField
-                fullWidth
-                placeholder="Enter search query, e.g., 'AI news'"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyPress={handleSearchKeyPress}
-                variant="outlined"
-                disabled={isBulkCrawling}
-              />
+            ) : (
               <Button
+                variant="contained"
+                color="secondary"
                 onClick={searchAndCrawlBulk}
-                disabled={isBulkCrawling || !searchQuery.trim()}
-                variant="contained"
-                sx={{ minWidth: 160, height: 56 }}
+                disabled={isCrawling || isBulkCrawling || !searchQuery.trim()}
+                startIcon={isBulkCrawling ? <CircularProgress size={20} color="inherit" /> : <BulkCrawlIcon />}
               >
-                {isBulkCrawling ? (
-                  <>
-                    <CircularProgress size={16} sx={{ mr: 1 }} />
-                    Crawling...
-                  </>
-                ) : (
-                  'Bulk Crawl'
-                )}
+                {t('crawler.bulkCrawl.searchAndCrawl')}
               </Button>
-            </Box>
-
-            {error && (
-              <Alert severity="error" sx={{ mt: 2 }} onClose={() => setError('')}>
-                {error}
-              </Alert>
             )}
-
-            {success && (
-              <Alert severity="success" sx={{ mt: 2 }} onClose={() => setSuccess('')}>
-                {success}
-              </Alert>
-            )}
-
-            {bulkCrawlProgress && (
-              <Box sx={{ mt: 2, p: 2, bgcolor: 'background.paper', borderRadius: 2, border: 1, borderColor: 'divider' }}>
-                <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                  <Typography variant="body2" fontWeight="medium">
-                    {bulkCrawlProgress.status === 'searching' ? 'Searching for URLs...' : 
-                     bulkCrawlProgress.status === 'crawling' ? `Crawling ${bulkCrawlProgress.currentIndex + 1} of ${bulkCrawlProgress.totalUrls}` :
-                     bulkCrawlProgress.status}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {bulkCrawlProgress.percentage}%
-                  </Typography>
-                </Box>
-                
-                <LinearProgress
-                  variant="determinate"
-                  value={bulkCrawlProgress.percentage}
-                  sx={{ height: 8, borderRadius: 4, mb: 2 }}
-                />
-                
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                  <strong>Current:</strong> {bulkCrawlProgress.currentUrl}
-                </Typography>
-                
-                <Box display="flex" justifyContent="space-between" alignItems="center">
-                  <Typography variant="body2" color="success.main">
-                    ✅ {bulkCrawlProgress.successfulCrawls} successful
-                  </Typography>
-                  <Typography variant="body2" color="error.main">
-                    ❌ {bulkCrawlProgress.failedCrawls} failed
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    ⏱️ {Math.round(bulkCrawlProgress.timeElapsed / 1000)}s
-                  </Typography>
-                </Box>
-              </Box>
-            )}
-          </CardContent>
-        </StyledCard>
-
-        {/* Context Summary Card */}
-        <StyledCard>
-          <CardHeader>
-            <Box display="flex" alignItems="center" gap={2} mb={1}>
-              <GlobeIcon color="primary" sx={{ fontSize: 32 }} />
-              <Typography variant="h5" fontWeight="bold">
-                AI Context Available
+          </Box>
+          {isBulkCrawling && bulkCrawlProgress && (
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="body2" gutterBottom>
+                {t('crawler.bulkCrawl.progress.crawling', { currentUrl: bulkCrawlProgress.currentUrl, currentIndex: bulkCrawlProgress.currentIndex, totalUrls: bulkCrawlProgress.totalUrls })}
               </Typography>
-            </Box>
-            <Typography variant="body2" color="text.secondary">
-              Your crawled content is automatically used as context in AI conversations
-            </Typography>
-          </CardHeader>
-          <CardContent>
-            <Box display="grid" gridTemplateColumns="repeat(auto-fit, minmax(200px, 1fr))" gap={2}>
-              <Box textAlign="center" p={2} bgcolor="primary.light" borderRadius={2}>
-                <Typography variant="h4" fontWeight="bold" color="primary.main">
-                  {crawledPages.length}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Total Pages Crawled
-                </Typography>
-              </Box>
-              <Box textAlign="center" p={2} bgcolor="success.light" borderRadius={2}>
-                <Typography variant="h4" fontWeight="bold" color="success.main">
-                  ✓
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Auto Context Mode
-                </Typography>
-              </Box>
-              <Box textAlign="center" p={2} bgcolor="info.light" borderRadius={2}>
-                <Typography variant="h4" fontWeight="bold" color="info.main">
-                  {Math.round(crawledPages.reduce((acc, page) => acc + (page.content?.length || 0), 0) / 1000)}K
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Characters Available
-                </Typography>
+              <LinearProgress variant="determinate" value={bulkCrawlProgress.percentage} />
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
+                <Typography variant="caption">{t('crawler.bulkCrawl.progress.status')}: {bulkCrawlProgress.status}</Typography>
+                <Typography variant="caption">{t('crawler.bulkCrawl.progress.success')}: {bulkCrawlProgress.successfulCrawls}</Typography>
+                <Typography variant="caption">{t('crawler.bulkCrawl.progress.failed')}: {bulkCrawlProgress.failedCrawls}</Typography>
+                <Typography variant="caption">{t('crawler.bulkCrawl.progress.time')}: {Math.round(bulkCrawlProgress.timeElapsed)}s</Typography>
               </Box>
             </Box>
-            
-            {crawledPages.length > 0 && (
-              <Alert severity="info" sx={{ mt: 2 }}>
-                <Typography variant="body2">
-                  <strong>How it works:</strong> When you chat with AI, all your crawled content is automatically 
-                  included as context. The AI can reference information from all {crawledPages.length} crawled 
-                  pages to provide more informed responses.
-                </Typography>
-              </Alert>
-            )}
-            
-            {crawledPages.length === 0 && (
-              <Alert severity="warning" sx={{ mt: 2 }}>
-                <Typography variant="body2">
-                  <strong>No context available:</strong> Crawl some websites first to give the AI additional 
-                  knowledge to work with in your conversations.
-                </Typography>
-              </Alert>
-            )}
-          </CardContent>
-        </StyledCard>
+          )}
+        </CardContent>
+      </StyledCard>
 
-        {/* Crawled Pages Table */}
-        <Card>
-          <CardHeader>
-            <Box display="flex" justifyContent="space-between" alignItems="center">
-              <Typography variant="h5" fontWeight="bold">
-                Crawled Pages ({crawledPages.length})
-              </Typography>
-              <Button
-                startIcon={<RefreshIcon />}
-                onClick={loadCrawledPages}
+      <Card>
+        <CardHeader
+          title={t('crawler.crawledPages.title')}
+          action={
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+              <TextField
                 variant="outlined"
                 size="small"
-              >
-                Refresh
-              </Button>
+                label={t('crawler.crawledPages.searchLabel')}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={t('crawler.crawledPages.searchPlaceholder')}
+              />
+              <IconButton onClick={loadCrawledPages} title={t('crawler.crawledPages.refresh')}>
+                <RefreshIcon />
+              </IconButton>
             </Box>
-          </CardHeader>
-          <CardContent sx={{ p: 0 }}>
-            {crawledPages.length === 0 ? (
-              <Box textAlign="center" p={6}>
-                <GlobeIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
-                <Typography variant="h6" color="text.secondary" gutterBottom>
-                  No pages crawled yet
-                </Typography>
-                <Typography variant="body2" color="text.disabled">
-                  Crawl your first website to see it appear here
-                </Typography>
-              </Box>
-            ) : (
-              <TableContainer>
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Title</TableCell>
-                      <TableCell>URL</TableCell>
-                      <TableCell>Date Crawled</TableCell>
-                      <TableCell>Status</TableCell>
-                      <TableCell align="right">Actions</TableCell>
+          }
+        />
+        <CardContent>
+          <TableContainer>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>{t('crawler.crawledPages.table.title')}</TableCell>
+                  <TableCell>{t('crawler.crawledPages.table.url')}</TableCell>
+                  <TableCell>{t('crawler.crawledPages.table.crawledAt')}</TableCell>
+                  <TableCell align="right">{t('crawler.crawledPages.table.actions')}</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {filteredPages.length > 0 ? (
+                  filteredPages.map((page) => (
+                    <TableRow key={page.id}>
+                      <TableCell>
+                        <Typography variant="body2" noWrap sx={{ maxWidth: 300 }}>
+                          {page.title || t('crawler.crawledPages.noTitle')}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Link href={page.url} target="_blank" rel="noopener noreferrer" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <LaunchIcon fontSize="inherit" />
+                          {page.url}
+                        </Link>
+                      </TableCell>
+                      <TableCell>
+                        {new Date(page.createdAt).toLocaleString()}
+                      </TableCell>
+                      <TableCell align="right">
+                        <IconButton onClick={() => openDeleteDialog(page.id)} color="error" title={t('crawler.crawledPages.delete')}>
+                          <DeleteIcon />
+                        </IconButton>
+                      </TableCell>
                     </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {crawledPages.map((page) => (
-                      <TableRow key={page.id} hover>
-                        <TableCell>
-                          <Typography variant="subtitle2" fontWeight="medium">
-                            {truncateText(page.title || 'Untitled', 50)}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Link
-                            href={page.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            color="primary"
-                            underline="hover"
-                            sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
-                          >
-                            {truncateText(page.url, 40)}
-                            <LaunchIcon sx={{ fontSize: 14 }} />
-                          </Link>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2" color="text.secondary">
-                            {formatDate(page.createdAt)}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            label="Indexed"
-                            color="success"
-                            size="small"
-                            variant="outlined"
-                          />
-                        </TableCell>
-                        <TableCell align="right">
-                          <IconButton
-                            onClick={() => setDeleteDialog({ open: true, pageId: page.id })}
-                            color="error"
-                            size="small"
-                            title="Delete crawled page"
-                          >
-                            <DeleteIcon />
-                          </IconButton>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            )}
-          </CardContent>
-        </Card>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={4} align="center">
+                      <Typography variant="body2" color="text.secondary">
+                        {t('crawler.crawledPages.noResults')}
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </CardContent>
+      </Card>
 
-        {/* Delete Confirmation Dialog */}
-        <Dialog
-          open={deleteDialog.open}
-          onClose={() => setDeleteDialog({ open: false, pageId: null })}
-          maxWidth="sm"
-          fullWidth
-        >
-          <DialogTitle>Delete Crawled Page</DialogTitle>
-          <DialogContent>
-            <Typography>
-              Are you sure you want to delete this crawled page? This action cannot be undone.
-            </Typography>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setDeleteDialog({ open: false, pageId: null })}>
-              Cancel
-            </Button>
-            <Button
-              onClick={() => deleteDialog.pageId && deleteCrawledPage(deleteDialog.pageId)}
-              color="error"
-              variant="contained"
-            >
-              Delete
-            </Button>
-          </DialogActions>
-        </Dialog>
-      </CrawlerContainer>
-    </Box>
+      <Dialog open={deleteDialog.open} onClose={closeDeleteDialog}>
+        <DialogTitle>{t('crawler.deleteDialog.title')}</DialogTitle>
+        <DialogContent>
+          <Typography>{t('crawler.deleteDialog.content')}</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeDeleteDialog}>{t('common.cancel')}</Button>
+          <Button onClick={handleDelete} color="error">{t('common.delete')}</Button>
+        </DialogActions>
+      </Dialog>
+    </CrawlerContainer>
   )
 }

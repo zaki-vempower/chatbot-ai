@@ -23,6 +23,7 @@ import {
   Language as CrawlerIcon,
 } from '@mui/icons-material'
 import { styled } from '@mui/material/styles'
+import { useTranslation } from 'react-i18next'
 
 const StyledDrawer = styled(Drawer)(({ theme }) => ({
   width: 320,
@@ -86,16 +87,16 @@ export function Sidebar({
   onDeleteConversation,
   onLogout,
 }: SidebarProps) {
+  const { t } = useTranslation()
   return (
     <StyledDrawer variant="permanent" anchor="left">
       <StyledHeader>
         <Box display="flex" alignItems="center" gap={1} mb={2}>
           <BotIcon color="primary" sx={{ fontSize: 28 }} />
           <Typography variant="h5" fontWeight="bold" color="primary">
-            AI Chatbot
+            {t('appTitle')}
           </Typography>
         </Box>
-        
         <Button
           fullWidth
           variant="contained"
@@ -104,9 +105,8 @@ export function Sidebar({
           size="large"
           sx={{ py: 1.5, mb: 1 }}
         >
-          New Conversation
+          {t('newConversation')}
         </Button>
-        
         <Link href="/crawler" style={{ textDecoration: 'none' }}>
           <Button
             fullWidth
@@ -115,20 +115,19 @@ export function Sidebar({
             size="large"
             sx={{ py: 1.5 }}
           >
-            Web Crawler
+            {t('webCrawler')}
           </Button>
         </Link>
       </StyledHeader>
-
       <Box flex={1} overflow="auto" py={1}>
         {conversations.length === 0 ? (
           <Box textAlign="center" p={4}>
             <ChatIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
             <Typography variant="h6" color="text.secondary" gutterBottom>
-              No conversations yet
+              {t('noConversationsYet')}
             </Typography>
             <Typography variant="body2" color="text.disabled">
-              Start a new chat to begin your AI journey
+              {t('startNewChat')}
             </Typography>
           </Box>
         ) : (
@@ -159,7 +158,7 @@ export function Sidebar({
                         </Typography>
                         {conversation.messageCount > 0 && (
                           <Chip 
-                            label={`${conversation.messageCount} messages`}
+                            label={t('messagesCount', { count: conversation.messageCount })}
                             size="small"
                             variant="outlined"
                             sx={{ ml: 1, height: 20 }}
@@ -184,7 +183,6 @@ export function Sidebar({
           </List>
         )}
       </Box>
-
       <Box p={2} borderTop="1px solid" borderColor="divider" bgcolor="background.paper">
         <Button
           fullWidth
@@ -193,7 +191,7 @@ export function Sidebar({
           onClick={onLogout}
           color="inherit"
         >
-          Sign Out
+          {t('signOut')}
         </Button>
       </Box>
     </StyledDrawer>
