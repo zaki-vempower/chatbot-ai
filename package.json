@@ -11,9 +11,11 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.55.0",
     "@auth/prisma-adapter": "^2.10.0",
+    "@aws-sdk/client-bedrock-runtime": "^3.842.0",
     "@emotion/cache": "^11.14.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
+    "@google/genai": "^1.8.0",
     "@google/generative-ai": "^0.24.1",
     "@hookform/resolvers": "^5.1.1",
     "@mui/icons-material": "^7.1.2",

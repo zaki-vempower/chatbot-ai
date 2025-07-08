@@ -8,7 +8,7 @@ import { z } from 'zod'
 const chatSchema = z.object({
   message: z.string(),
   conversationId: z.string().optional(),
-  provider: z.enum(['openai', 'claude', 'gemini', 'deepseek', 'llama']),
+  provider: z.enum(['openai', 'claude', 'gemini', 'deepseek', 'llama','bedrock']),
 })
 
 export async function POST(request: NextRequest) {

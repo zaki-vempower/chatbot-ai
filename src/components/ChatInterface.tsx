@@ -86,7 +86,7 @@ export function ChatInterface({ conversation, onNewConversation }: ChatInterface
   const [messages, setMessages] = useState<Message[]>(conversation?.messages || [])
   const [inputMessage, setInputMessage] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [provider, setProvider] = useState<'openai' | 'claude' | 'gemini' | 'deepseek' | 'llama'>('openai')
+  const [provider, setProvider] = useState<'openai' | 'claude' | 'gemini' | 'deepseek' | 'llama' | 'bedrock'>('openai')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const { showToast } = useToast()
 
@@ -197,6 +197,7 @@ export function ChatInterface({ conversation, onNewConversation }: ChatInterface
                 <MenuItem value="gemini">{t('googleGemini')}</MenuItem>
                 <MenuItem value="deepseek">{t('deepseek')}</MenuItem>
                 <MenuItem value="llama">{t('llamaLocal')}</MenuItem>
+                <MenuItem value="bedrock">{t('Bedrock')}</MenuItem>
               </Select>
             </FormControl>
           </Box>

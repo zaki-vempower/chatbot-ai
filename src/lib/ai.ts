@@ -1,9 +1,11 @@
 import OpenAI from 'openai'
 import Anthropic from '@anthropic-ai/sdk'
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import {GoogleGenAI} from '@google/genai';
 import { Ollama } from 'ollama'
+import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime'
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-export type AIProvider = 'openai' | 'claude' | 'gemini' | 'deepseek' | 'llama'
+export type AIProvider = 'openai' | 'claude' | 'gemini' | 'deepseek' | 'llama' | 'bedrock'
 
 export interface ChatMessage {
   role: 'user' | 'assistant'
@@ -13,9 +15,10 @@ export interface ChatMessage {
 export class AIService {
   private openai?: OpenAI
   private anthropic?: Anthropic
-  private gemini?: GoogleGenerativeAI
+  private gemini?: GoogleGenAI
   private deepseek?: OpenAI
   private ollama?: Ollama
+  private bedrock?: BedrockRuntimeClient
 
   constructor() {
     if (process.env.OPENAI_API_KEY) {
@@ -31,7 +34,7 @@ export class AIService {
     }
 
     if (process.env.GOOGLE_API_KEY) {
-      this.gemini = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY)
+      this.gemini = new GoogleGenAI({apiKey: GEMINI_API_KEY});
     }
 
     if (process.env.DEEPSEEK_API_KEY) {
@@ -45,6 +48,27 @@ export class AIService {
     this.ollama = new Ollama({
       host: process.env.OLLAMA_HOST || 'http://localhost:11434',
     })
+
+    // Initialize Bedrock
+    if (process.env.AWS_REGION) {
+      
+      // Use explicit credentials if provided, otherwise use default credential chain
+      const credentials = (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) 
+      ? {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+        sessionToken: process.env.AWS_SESSION_TOKEN, // Optional, for temporary credentials
+      }
+      : undefined;
+      
+      console.log('Initializing AWS Bedrock client...',credentials);
+
+
+      this.bedrock = new BedrockRuntimeClient({
+        region: process.env.AWS_REGION,
+        credentials,
+      })
+    }
   }
 
   async generateResponse(
@@ -96,17 +120,22 @@ Please provide a helpful response based on the conversation and available crawle
 
         case 'gemini':
           if (!this.gemini) throw new Error('Google API key not configured')
-          const model = this.gemini.getGenerativeModel({ model: 'gemini-pro' })
-          const chat = model.startChat({
-            history: messages.slice(0, -1).map(m => ({
-              role: m.role === 'user' ? 'user' : 'model',
-              parts: [{ text: m.content }],
-            })),
-          })
-          const lastMessage = messages[messages.length - 1]
-          const prompt = context ? `${systemPrompt}\n\nUser: ${lastMessage.content}` : lastMessage.content
-          const result = await chat.sendMessage(prompt)
-          return result.response.text()
+          
+          // Combine system prompt with messages similar to other providers
+          const combinedMessages = [
+            { role: 'user' as const, parts: [{ text: systemPrompt }] },
+            ...messages.map(m => ({
+              role: m.role === 'user' ? 'user' as const : 'model' as const,
+              parts: [{ text: m.content }]
+            }))
+          ];
+
+          const result = await this.gemini.models.generateContent({
+            model: 'gemini-2.0-flash-001',
+            contents: combinedMessages
+          });
+
+          return result.text || 'No response generated'
 
         case 'deepseek':
           if (!this.deepseek) throw new Error('DeepSeek API key not configured')
@@ -143,6 +172,54 @@ Please provide a helpful response based on the conversation and available crawle
               throw new Error('Ollama service is not running. Please start Ollama and ensure the model is installed.')
             }
             throw new Error(`Ollama error: ${ollamaError instanceof Error ? ollamaError.message : 'Unknown error'}`)
+          }
+
+        case 'bedrock':
+          if (!this.bedrock) throw new Error('AWS Bedrock not configured')
+          
+          console.log('Generating response with Bedrock...');
+          
+          // Format messages for Claude on Bedrock
+          const bedrockMessages = messages.map(m => ({
+            role: m.role,
+            content: m.content
+          }))
+
+          const bedrockPayload = {
+            anthropic_version: "bedrock-2023-05-31",
+            max_tokens: 1000,
+            system: systemPrompt,
+            messages: bedrockMessages
+          }
+
+          try {
+            const command = new InvokeModelCommand({
+              modelId: process.env.BEDROCK_MODEL_ID || 'anthropic.claude-3-5-sonnet-20241022-v2:0',
+              body: JSON.stringify(bedrockPayload),
+              contentType: 'application/json',
+            })
+
+            const response = await this.bedrock.send(command)
+            const responseBody = JSON.parse(new TextDecoder().decode(response.body))
+            
+            return responseBody.content?.[0]?.text || 'No response generated'
+          } catch (bedrockError) {
+            console.error('Bedrock error details:', bedrockError);
+            
+            // Handle specific AWS errors
+            if (bedrockError instanceof Error) {
+              if (bedrockError.message.includes('security token')) {
+                throw new Error('AWS credentials are invalid or expired. Please check your AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.')
+              }
+              if (bedrockError.message.includes('not authorized')) {
+                throw new Error('AWS credentials do not have permission to access Bedrock. Please check your IAM permissions.')
+              }
+              if (bedrockError.message.includes('model')) {
+                throw new Error(`Bedrock model not found or not accessible. Check your BEDROCK_MODEL_ID: ${process.env.BEDROCK_MODEL_ID}`)
+              }
+            }
+            
+            throw new Error(`Bedrock error: ${bedrockError instanceof Error ? bedrockError.message : 'Unknown error'}`)
           }
 
         default:

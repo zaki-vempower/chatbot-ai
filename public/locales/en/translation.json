@@ -20,6 +20,7 @@
   "googleGemini": "Google Gemini",
   "deepseek": "DeepSeek",
   "llamaLocal": "Llama (Local)",
+  "Bedrock": "Amazon Bedrock",
   "aiResponsesDisclaimer": "AI responses are generated and may contain inaccuracies",
   "chatWithAiUsing": "Chat with AI using {{provider}}",
   "delete": "Delete",
