@@ -98,6 +98,14 @@
         "time": "Time Elapsed"
       }
     },
+    "creategroup":{
+      "title": " + Create Group",
+      "subtitle": "Create a Group you want...",
+      "description": "Enter a group name.",
+      "queryLabel": "Group Name",
+      "placeholder": "e.g., \"News, Sports, AI, Finance\"",
+      "create": "Create Group"
+    },
     "crawledPages": {
       "title": "Crawled Pages",
       "searchLabel": "Search pages...",

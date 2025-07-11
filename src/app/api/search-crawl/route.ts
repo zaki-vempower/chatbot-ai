@@ -8,6 +8,7 @@ const searchCrawlSchema = z.object({
   query: z.string().min(1),
   maxResults: z.number().min(1).max(50).default(20),
   categories: z.array(z.string()).default(['general']),
+  groupId: z.string().optional(),
 })
 
 // POST - Search and crawl multiple websites
@@ -23,8 +24,8 @@ export async function POST(request: NextRequest) {
     const { userId } = verifyToken(token)
 
     const body = await request.json()
-    const { query, maxResults, categories } = searchCrawlSchema.parse(body)
-
+    const { query, maxResults, categories, groupId  } = searchCrawlSchema.parse(body)
+ 
     // Check if SearXNG is available
     const isHealthy = await searxngClient.isHealthy()
     if (!isHealthy) {
@@ -38,7 +39,7 @@ export async function POST(request: NextRequest) {
 
     // Start the crawling process asynchronously
     // We'll return the session ID immediately and let the client poll for progress
-    searxngClient.searchAndCrawlWithProgress(sessionId, userId, query, maxResults, categories)
+    searxngClient.searchAndCrawlWithProgress(sessionId, userId, query, maxResults, categories, groupId)
       .catch(error => {
         console.error('Background crawling error:', error)
         progressTracker.completeProgress(sessionId, error.message)

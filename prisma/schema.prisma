@@ -1,47 +1,50 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  password  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
+  id            String         @id @default(cuid())
+  email         String         @unique
+  name          String?
+  password      String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
   conversations Conversation[]
   crawledData   CrawledData[]
 }
 
 model Conversation {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   title     String
   userId    String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  messages Message[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  Message[]
 }
 
 model Message {
-  id             String   @id @default(cuid())
+  id             String       @id @default(cuid())
   content        String
-  role           String   // 'user' or 'assistant'
+  role           String
   conversationId String
-  createdAt      DateTime @default(now())
-  
-  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 }
+
+model CrawlerGroup {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  userId    String
+  createdAt DateTime @default(now())
+  pages     CrawledData[]
+}
+
 
 model CrawledData {
   id        String   @id @default(cuid())
@@ -51,17 +54,21 @@ model CrawledData {
   userId    String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  groupId   String? 
+  group     CrawlerGroup? @relation(fields: [groupId], references: [id])
+
   @@unique([url, userId])
 }
 
 model ApiKey {
   id        String   @id @default(cuid())
-  provider  String   // 'openai', 'claude', 'gemini', 'deepseek'
+  provider  String
   key       String
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+
