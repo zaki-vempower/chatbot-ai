@@ -33,6 +33,16 @@ CREATE TABLE "Message" (
 );
 
 -- CreateTable
+CREATE TABLE "CrawlerGroup" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "CrawlerGroup_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "CrawledData" (
     "id" TEXT NOT NULL,
     "url" TEXT NOT NULL,
@@ -41,6 +51,7 @@ CREATE TABLE "CrawledData" (
     "userId" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "groupId" TEXT,
 
     CONSTRAINT "CrawledData_pkey" PRIMARY KEY ("id")
 );
@@ -61,6 +72,9 @@ CREATE TABLE "ApiKey" (
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "CrawlerGroup_name_key" ON "CrawlerGroup"("name");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "CrawledData_url_userId_key" ON "CrawledData"("url", "userId");
 
 -- AddForeignKey
@@ -71,3 +85,6 @@ ALTER TABLE "Message" ADD CONSTRAINT "Message_conversationId_fkey" FOREIGN KEY (
 
 -- AddForeignKey
 ALTER TABLE "CrawledData" ADD CONSTRAINT "CrawledData_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CrawledData" ADD CONSTRAINT "CrawledData_groupId_fkey" FOREIGN KEY ("groupId") REFERENCES "CrawlerGroup"("id") ON DELETE SET NULL ON UPDATE CASCADE;

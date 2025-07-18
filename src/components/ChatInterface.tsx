@@ -46,6 +46,24 @@ const MessageBox = styled(Paper)<{ role: "user" | "assistant" }>(
           backgroundColor: theme.palette.background.paper,
           border: `1px solid ${theme.palette.divider}`,
         }),
+    "& p": {
+      marginBottom: "1rem",
+      lineHeight: 1.6,
+    },
+    "& ul, & ol": {
+      paddingLeft: "1.5rem",
+      marginBottom: "1rem",
+    },
+    "& li": {
+      marginBottom: "0.5rem",
+    },
+    "& code": {
+      backgroundColor: "#919297",
+      color: "#f8f8f2",
+      borderRadius: "4px",
+      padding: "4px 8px",
+      fontSize: "95%",
+    },
   })
 );
 
@@ -102,9 +120,13 @@ export function ChatInterface({
   );
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  // const [provider, setProvider] = useState<
+  //   "openai" | "claude" | "gemini" | "deepseek" | "llama"
+  // >("openai");
   const [provider, setProvider] = useState<
     "openai" | "claude" | "gemini" | "deepseek" | "llama"
-  >("openai");
+  >("claude");
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { showToast } = useToast();
 
@@ -112,7 +134,7 @@ export function ChatInterface({
     if (conversation?.messages) {
       setMessages(conversation.messages);
     } else {
-      setMessages([]); //Clear messages for new conversation
+      setMessages([]);
     }
   }, [conversation]);
 
@@ -146,6 +168,7 @@ export function ChatInterface({
           message: inputMessage,
           conversationId: conversation?.id,
           provider,
+          groupId: selectedGroup,
         }),
       });
 
@@ -185,6 +208,35 @@ export function ChatInterface({
     }
   };
 
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [selectedGroup, setSelectedGroup] = useState("");
+
+  useEffect(() => {
+    const fetchGroups = async () => {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+
+      try {
+        const response = await fetch("/api/crawler-groups", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setGroups(data);
+        } else {
+          console.error("Failed to fetch groups");
+        }
+      } catch (error) {
+        console.error("Error fetching groups:", error);
+      }
+    };
+
+    fetchGroups();
+  }, []);
+
   return (
     <ChatContainer>
       {/* Header */}
@@ -209,32 +261,65 @@ export function ChatInterface({
               })}
             </Typography>
           </Box>
-          <Box display="flex" alignItems="center" gap={2}>
-            <Typography variant="body2" fontWeight="medium">
-              {t("aiProvider")}
-            </Typography>
-            <FormControl size="small" sx={{ minWidth: 160 }}>
-              <Select
-                value={provider}
-                onChange={(e) =>
-                  setProvider(
-                    e.target.value as
-                      | "openai"
-                      | "claude"
-                      | "gemini"
-                      | "deepseek"
-                      | "llama"
-                  )
-                }
-                variant="outlined"
-              >
-                <MenuItem value="openai">{t("openaiGpt")}</MenuItem>
-                <MenuItem value="claude">{t("anthropicClaude")}</MenuItem>
-                <MenuItem value="gemini">{t("googleGemini")}</MenuItem>
-                <MenuItem value="deepseek">{t("deepseek")}</MenuItem>
-                <MenuItem value="llama">{t("llamaLocal")}</MenuItem>
-              </Select>
-            </FormControl>
+
+          <Box display="flex" alignItems="center" gap={3}>
+            {/* Group Selector */}
+            <Box>
+              <Typography variant="body2" fontWeight="medium" gutterBottom>
+                Select Group :
+              </Typography>
+
+              <FormControl size="small" sx={{ minWidth: 160 }}>
+                <Select
+                  value={selectedGroup}
+                  onChange={(e) => setSelectedGroup(e.target.value)}
+                  variant="outlined"
+                >
+                  <MenuItem value="default">Default</MenuItem>
+
+                  {groups.length > 0 ? (
+                    groups.map((group) => (
+                      <MenuItem key={group.id} value={group.id}>
+                        {group.name}
+                      </MenuItem>
+                    ))
+                  ) : (
+                    <MenuItem value="" disabled>
+                      No groups found
+                    </MenuItem>
+                  )}
+                </Select>
+              </FormControl>
+            </Box>
+
+            {/* AI Provider Selector */}
+            <Box>
+              <Typography variant="body2" fontWeight="medium" gutterBottom>
+                {t("aiProvider")}
+              </Typography>
+              <FormControl size="small" sx={{ minWidth: 160 }}>
+                <Select
+                  value={provider}
+                  onChange={(e) =>
+                    setProvider(
+                      e.target.value as
+                        | "openai"
+                        | "claude"
+                        | "gemini"
+                        | "deepseek"
+                        | "llama"
+                    )
+                  }
+                  variant="outlined"
+                >
+                  <MenuItem value="openai">{t("openaiGpt")}</MenuItem>
+                  <MenuItem value="claude">{t("anthropicClaude")}</MenuItem>
+                  <MenuItem value="gemini">{t("googleGemini")}</MenuItem>
+                  <MenuItem value="deepseek">{t("deepseek")}</MenuItem>
+                  <MenuItem value="llama">{t("llamaLocal")}</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
           </Box>
         </Box>
       </Paper>
@@ -271,28 +356,6 @@ export function ChatInterface({
                   <BotIcon />
                 </Avatar>
               )}
-              {/* <MessageBox role={message.role}>
-                <Typography
-                  variant="body1"
-                  sx={{ whiteSpace: "pre-wrap", lineHeight: 1.6 }}
-                >
-                  {message.content}
-                </Typography>
-                <Typography
-                  variant="caption"
-                  color={
-                    message.role === "user"
-                      ? "primary.contrastText"
-                      : "text.secondary"
-                  }
-                  sx={{ mt: 1, display: "block" }}
-                >
-                  {new Date(message.createdAt).toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </Typography>
-              </MessageBox> */}
 
               <MessageBox role={message.role}>
                 {message.role === "assistant" ? (

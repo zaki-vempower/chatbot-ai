@@ -723,6 +723,7 @@ export default function CrawlerPage() {
       </Dialog>
 
       {/* Bulk Crawl Dialog */}
+      {/* Bulk Crawl Dialog */}
       <Dialog
         open={bulkCrawlDialog}
         onClose={() => setBulkCrawlDialog(false)}
@@ -734,7 +735,7 @@ export default function CrawlerPage() {
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             {t("crawler.bulkCrawl.description")}
           </Typography>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 2 }}>
             <TextField
               fullWidth
               variant="outlined"
@@ -758,6 +759,20 @@ export default function CrawlerPage() {
               disabled={isCrawling || isBulkCrawling}
               helperText={t("crawler.bulkCrawl.maxEntriesHelper")}
             />
+
+            <InputLabel sx={{ mt: 0 }}>Group</InputLabel>
+            <Select
+              value={selectedGroupId}
+              onChange={(e) => setSelectedGroupId(e.target.value)}
+              sx={{ mt: 0, mx: 0, width: "100%" }}
+            >
+              <MenuItem value="Default">Default</MenuItem>
+              {groups.map((g) => (
+                <MenuItem key={g.id} value={g.id}>
+                  {g.name}
+                </MenuItem>
+              ))}
+            </Select>
           </Box>
         </DialogContent>
         <DialogActions>
