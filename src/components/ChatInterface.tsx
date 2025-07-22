@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -26,8 +27,8 @@ import { useTranslation } from "react-i18next";
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
-// import { materialLight } from "react-syntax-highlighter/dist/esm/styles/prism";
 import * as prismThemes from "react-syntax-highlighter/dist/esm/styles/prism";
+import remarkGfm from "remark-gfm";
 
 console.log("prisma theme ", prismThemes);
 
@@ -120,9 +121,7 @@ export function ChatInterface({
   );
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  // const [provider, setProvider] = useState<
-  //   "openai" | "claude" | "gemini" | "deepseek" | "llama"
-  // >("openai");
+ 
   const [provider, setProvider] = useState<
     "openai" | "claude" | "gemini" | "deepseek" | "llama"
   >("claude");
@@ -360,8 +359,9 @@ export function ChatInterface({
               <MessageBox role={message.role}>
                 {message.role === "assistant" ? (
                   <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
                     components={{
-                      code({ node, inline, className, children, ...props }) {
+                      code({ inline, className, children, ...props }) {
                         const match = /language-(\w+)/.exec(className || "");
                         return !inline && match ? (
                           <SyntaxHighlighter
@@ -452,6 +452,7 @@ export function ChatInterface({
 
       {/* Input */}
       <Paper sx={{ p: 3, borderTop: 1, borderColor: "divider" }}>
+        
         <Box display="flex" gap={2} alignItems="flex-end">
           <TextField
             fullWidth
@@ -494,3 +495,5 @@ export function ChatInterface({
     </ChatContainer>
   );
 }
+
+

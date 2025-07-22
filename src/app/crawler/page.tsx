@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, use } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Box,
@@ -105,31 +105,12 @@ export default function CrawlerPage() {
   const { t } = useTranslation();
   const [groupName, setGroupName] = useState("");
   const [groups, setGroups] = useState<Group[]>([]);
-  const [selectedGroupId, setSelectedGroupId] = useState("");
+  const [selectedGroupId, setSelectedGroupId] = useState("Default");
 
   interface Group {
     id: string;
     name: string;
   }
-  // fetch the groups
-  useEffect(() => {
-    const fetchGroups = async () => {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        console.error("No token found.");
-        return;
-      }
-      const response = await fetch("/api/crawler-groups", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const data = await response.json();
-      console.log("data", data);
-      setGroups(data);
-    };
-    fetchGroups();
-  }, []);
 
   // Check authentication on component mount
   useEffect(() => {
@@ -146,6 +127,26 @@ export default function CrawlerPage() {
   const handleLogin = (userData: User) => {
     setUser(userData);
   };
+
+  // Fetch the groups
+  const loadGroups = useCallback(async () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      console.error("No token found.");
+      return;
+    }
+    const response = await fetch("/api/crawler-groups", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    const data = await response.json();
+    setGroups(data);
+  }, []);
+
+  useEffect(() => {
+    loadGroups();
+  }, [loadGroups]);
 
   const handleCreateGroup = async () => {
     if (!groupName.trim()) return;
@@ -167,7 +168,7 @@ export default function CrawlerPage() {
 
       if (data.success) {
         setSuccess(`${t("crawler.creategroup.created")}: ${data.group.name}`);
-        // You could also refresh your groups list here if you're maintaining one
+        loadGroups();
       } else {
         setError(data.error || t("crawler.creategroup.error"));
       }
@@ -192,6 +193,7 @@ export default function CrawlerPage() {
         headers: {
           Authorization: `Bearer ${token}`,
         },
+        cache: "no-store",
       });
 
       if (response.ok) {
@@ -208,10 +210,10 @@ export default function CrawlerPage() {
 
   // Load crawled pages when authenticated
   useEffect(() => {
-    if (user) {
+    if (!isBulkCrawling && user) {
       loadCrawledPages();
     }
-  }, [user, loadCrawledPages]);
+  }, [user, isBulkCrawling, loadCrawledPages]);
 
   const crawlWebsite = async () => {
     if (!crawlUrl.trim()) return;
@@ -309,20 +311,37 @@ export default function CrawlerPage() {
 
     try {
       const token = localStorage.getItem("token");
+
+      // Fetch final progress before stopping
+      const res = await fetch(
+        `/api/crawl-progress?sessionId=${crawlSessionId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      const finalProgress = await res.json();
+      console.log("finalProgress", finalProgress);
+
+      setBulkCrawlProgress(finalProgress); // Update UI with final snapshot
+
+      // Stop the crawl session on server
       await fetch(`/api/crawl-progress?sessionId=${crawlSessionId}`, {
         method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
+
       setSuccess(t("crawler.bulkCrawlStopped"));
+
+      // Optionally, wait a bit to let user view final numbers
+      setTimeout(() => {
+        setIsBulkCrawling(false);
+        setCrawlSessionId(null);
+        setBulkCrawlProgress(initialProgress);
+        loadCrawledPages();
+      }, 2000); // or even 3000ms
     } catch (error) {
       console.error("Error stopping bulk crawl:", error);
       setError(t("crawler.stopBulkCrawlError"));
-    } finally {
-      setIsBulkCrawling(false);
-      setCrawlSessionId(null);
-      setBulkCrawlProgress(null);
     }
   };
 
@@ -687,7 +706,7 @@ export default function CrawlerPage() {
             onChange={(e) => setSelectedGroupId(e.target.value)}
             sx={{ mt: 1, mx: 0, width: "100%" }}
           >
-            <MenuItem value="">Default</MenuItem>
+            <MenuItem value="Default">Default</MenuItem>
             {groups.map((g) => (
               <MenuItem key={g.id} value={g.id}>
                 {g.name}

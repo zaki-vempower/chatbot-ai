@@ -1,9 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { aiService, type AIProvider } from "@/lib/ai";
-import { webCrawler } from "@/lib/crawler";
-import { verifyToken } from "@/lib/auth";
-import { z } from "zod";
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+import { aiService, type AIProvider } from '@/lib/ai'
+import { webCrawler } from '@/lib/crawler'
+import { verifyToken } from '@/lib/auth'
+import { z } from 'zod'
+
 
 const chatSchema = z.object({
   message: z.string(),
@@ -61,6 +62,8 @@ export async function POST(request: NextRequest) {
         conversationId: conversation.id,
       },
     });
+    const relevantContext = await webCrawler.searchCrawledData(userId, message);
+
 
     let context = "";
     if (groupId) {
@@ -69,10 +72,16 @@ export async function POST(request: NextRequest) {
         select: { content: true },
         take: 10,
       });
+
       context = groupLinks.map((d) => d.content).join("\n\n");
-    } else {
+
+    } else if (relevantContext) {
+      context += `RELEVANT CONTEXT:\n${relevantContext}\n\n`;
+    }
+     else  {
       context = await webCrawler.getAllCrawledDataAsContext(userId, 8);
     }
+
 
     const messages = conversation.messages.map((msg) => ({
       role: msg.role as "user" | "assistant",

@@ -40,6 +40,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       pages: crawledPages,
+      headers: {
+        "Cache-Control": "no-store",
+      },
     });
   } catch (error) {
     console.error("Error fetching crawled pages:", error);

@@ -1,3 +1,4 @@
+
 import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
 import { GoogleGenerativeAI } from "@google/generative-ai";
@@ -26,7 +27,7 @@ export class AIService {
 
     if (process.env.ANTHROPIC_API_KEY) {
       this.anthropic = new Anthropic({
-        apiKey: process.env.ANTHROPIC_API_KEY,
+        apiKey: process.env.ANTHROPIC_API_KEY || "claude-3-haiku-20240307",
       });
     }
 
@@ -104,6 +105,7 @@ Please provide a helpful response based on the conversation and available crawle
               content: m.content,
             })),
           });
+
           return claudeResponse.content[0]?.type === "text"
             ? claudeResponse.content[0].text
             : "No response generated";
