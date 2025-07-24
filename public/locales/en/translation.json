@@ -20,7 +20,6 @@
   "googleGemini": "Google Gemini",
   "deepseek": "DeepSeek",
   "llamaLocal": "Llama (Local)",
-  "Bedrock": "Amazon Bedrock",
   "aiResponsesDisclaimer": "AI responses are generated and may contain inaccuracies",
   "chatWithAiUsing": "Chat with AI using {{provider}}",
   "delete": "Delete",
@@ -99,6 +98,14 @@
         "time": "Time Elapsed"
       }
     },
+    "creategroup":{
+      "title": " + Create Group",
+      "subtitle": "Create a Group you want...",
+      "description": "Enter a group name.",
+      "queryLabel": "Group Name",
+      "placeholder": "e.g., \"News, Sports, AI, Finance\"",
+      "create": "Create Group"
+    },
     "crawledPages": {
       "title": "Crawled Pages",
       "searchLabel": "Search pages...",
@@ -120,3 +127,4 @@
     }
   }
 }
+

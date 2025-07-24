@@ -41,6 +41,7 @@ export default function Home() {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [chatKey, setChatKey] = useState(Date.now())
 
   useEffect(() => {
     // Check for existing auth
@@ -111,6 +112,7 @@ export default function Home() {
 
   const handleNewConversation = () => {
     setCurrentConversation(null)
+    setChatKey(Date.now())
   }
 
   const handleNewConversationCreated = (conversation: Conversation) => {
@@ -163,6 +165,7 @@ export default function Home() {
         />
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           <ChatInterface
+           key={chatKey}
             conversation={currentConversation || undefined}
             onNewConversation={handleNewConversationCreated}
           />

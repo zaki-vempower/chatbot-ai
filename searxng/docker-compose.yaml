@@ -1,6 +1,24 @@
 version: "3.7"
 
 services:
+
+
+  postgres:
+    container_name: postgres_container
+    image: postgres:16-alpine
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: chatbot_ai_db
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - searxng
+
+
   caddy:
     container_name: caddy
     image: docker.io/library/caddy:2-alpine
@@ -63,3 +81,5 @@ volumes:
   caddy-config:
   valkey-data2:
   searxng-data:
+  postgres-data:
+
