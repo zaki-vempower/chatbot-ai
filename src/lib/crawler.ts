@@ -15,7 +15,11 @@ export class WebCrawler {
 
       const response = await fetch(url, {
         headers: {
-          "User-Agent": "Mozilla/5.0 (compatible; ChatbotCrawler/1.0)",
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
+          Accept: "text/html,application/xhtml+xml",
+          "Accept-Language": "en-US,en;q=0.9",
+          Referer: "https://www.google.com",
         },
         signal: controller.signal,
       });
@@ -109,7 +113,7 @@ export class WebCrawler {
         update: {
           title: crawlResult.title,
           content: crawlResult.content,
-          groupId: groupId || null, 
+          groupId: groupId || null,
           updatedAt: new Date(),
         },
         create: {
@@ -117,7 +121,7 @@ export class WebCrawler {
           title: crawlResult.title,
           content: crawlResult.content,
           userId: userId,
-          groupId: groupId || null, 
+          groupId: groupId || null,
         },
       });
     } catch (error) {
@@ -266,8 +270,6 @@ export class WebCrawler {
       };
     }
   }
-
-
 }
 
 export const webCrawler = new WebCrawler();
